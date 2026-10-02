@@ -65,14 +65,17 @@ jobs:
         run: |
           set -euo pipefail
           account=$(aws sts get-caller-identity --query Account --output text)
-          if aws s3api head-bucket --bucket "$STATE_BUCKET" --expected-bucket-owner "$account" 2>/dev/null; then
+          # Capture the result first: with pipefail, piping a failing command into grep always fails.
+          if probe=$(aws s3api head-bucket --bucket "$STATE_BUCKET" --expected-bucket-owner "$account" 2>&1); then
             echo "State bucket already exists."
-          elif aws s3api head-bucket --bucket "$STATE_BUCKET" 2>&1 | grep -q 404; then
+          elif grep -q '(404)' <<<"$probe"; then
+            echo "State bucket not found; creating it."
             aws s3api create-bucket --bucket "$STATE_BUCKET" --region "$AWS_REGION" --create-bucket-configuration "LocationConstraint=$AWS_REGION"
             aws s3api put-public-access-block --bucket "$STATE_BUCKET" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
             aws s3api put-bucket-versioning --bucket "$STATE_BUCKET" --versioning-configuration Status=Enabled
             aws s3api put-bucket-encryption --bucket "$STATE_BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
           else
+            echo "$probe"
             echo "::error::Bucket $STATE_BUCKET exists but is not owned by this account or is not accessible."
             exit 1
           fi
