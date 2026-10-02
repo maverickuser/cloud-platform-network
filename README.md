@@ -2,7 +2,7 @@
 
 One shared AWS network for every cloud-platform service, with a single owner. Services do not copy this Terraform: their deployment calls the reusable workflow here, which creates the network on the first call and changes nothing on later calls, then they read its outputs.
 
-Nothing in this repository has been applied yet.
+The network is created in `ap-south-1`. Check the latest `Shared network` and `Destroy network` workflow runs for whether it currently exists.
 
 ## What it creates
 
@@ -52,6 +52,10 @@ data "terraform_remote_state" "network" {
 ## State
 
 The workflow creates the bucket `cloud-platform-network-terraform-state` if this account does not have it (versioned, encrypted, no public access) and locks with an S3 lock file, so two pipelines cannot apply at once. If the bucket name is owned by another account the workflow fails rather than choosing a different name.
+
+## Removing the network
+
+The manual `Destroy network` workflow in this repository removes every resource in the network state after you type `destroy` to confirm. It keeps the state bucket, so the next apply re-creates the network. Any service whose Lambdas or endpoints still use the VPC will block the destroy or be left without a network.
 
 ## Adding a consumer
 
