@@ -1,0 +1,21 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  terraform:
+    name: Terraform validate and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pinned Terraform
+        run: |
+          curl -fsSLo terraform.zip https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip
+          curl -fsSL https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_SHA256SUMS | grep ' terraform_1.16.4_linux_amd64.zip$' | sed 's/terraform_1.16.4_linux_amd64.zip/terraform.zip/' | sha256sum -c -
+          mkdir -p "$HOME/.local/bin" && unzip -o terraform.zip terraform -d "$HOME/.local/bin" && rm terraform.zip
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: make check
