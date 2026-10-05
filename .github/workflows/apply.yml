@@ -38,6 +38,11 @@ jobs:
   network:
     name: Plan and apply shared network
     runs-on: ubuntu-24.04
+    # Callers from different repositories must not create the state bucket or apply at once.
+    # Not named shared-network: a caller holding that group would wait on itself.
+    concurrency:
+      group: cloud-platform-network-apply
+      cancel-in-progress: false
     timeout-minutes: 30
     env:
       AWS_REGION: ${{ inputs.aws_region || 'ap-south-1' }}

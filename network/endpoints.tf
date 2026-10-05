@@ -48,7 +48,7 @@ resource "aws_vpc_endpoint" "interface" {
 resource "aws_security_group" "lambda" {
   for_each    = var.lambda_security_groups
   name        = "${var.name}-${each.key}-lambda"
-  description = "Lambda functions of the ${each.key} service: HTTPS egress only"
+  description = contains(var.postgres_clients, each.key) ? "Lambda functions of the ${each.key} service: HTTPS and in-VPC PostgreSQL egress" : "Lambda functions of the ${each.key} service: HTTPS egress only"
   vpc_id      = aws_vpc.this.id
   tags        = { Name = "${var.name}-${each.key}-lambda" }
 }
@@ -61,4 +61,15 @@ resource "aws_vpc_security_group_egress_rule" "lambda_https" {
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
+}
+
+# The database lives in the consumer's own state; its security group admits this group.
+resource "aws_vpc_security_group_egress_rule" "lambda_postgres" {
+  for_each          = var.postgres_clients
+  security_group_id = aws_security_group.lambda[each.key].id
+  description       = "PostgreSQL to databases inside the VPC"
+  cidr_ipv4         = var.vpc_cidr
+  ip_protocol       = "tcp"
+  from_port         = 5432
+  to_port           = 5432
 }

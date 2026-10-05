@@ -14,7 +14,7 @@ variable "vpc_cidr" {
   default = "10.20.0.0/16"
   validation {
     condition     = can(cidrhost(var.vpc_cidr, 0)) && tonumber(split("/", var.vpc_cidr)[1]) <= 20
-    error_message = "vpc_cidr must be a valid CIDR of /20 or larger so four /4-bit subnets fit."
+    error_message = "vpc_cidr must be a valid CIDR of /20 or larger; subnets are 4 bits longer, so up to four zones fit."
   }
 }
 
@@ -36,10 +36,20 @@ variable "interface_endpoint_services" {
 
 variable "lambda_security_groups" {
   type        = set(string)
-  default     = ["fetch"]
-  description = "Consumer names; each gets a Lambda security group with HTTPS-only egress and no ingress."
+  default     = ["fetch", "processing"]
+  description = "Consumer names; each gets a Lambda security group with HTTPS egress and no ingress."
   validation {
     condition     = alltrue([for name in var.lambda_security_groups : can(regex("^[a-z][a-z0-9-]{0,30}$", name))])
     error_message = "Security group consumer names must be short lowercase identifiers."
+  }
+}
+
+variable "postgres_clients" {
+  type        = set(string)
+  default     = ["processing"]
+  description = "Consumers whose Lambda security group may also open PostgreSQL (5432) connections inside the VPC."
+  validation {
+    condition     = length(setsubtract(var.postgres_clients, var.lambda_security_groups)) == 0
+    error_message = "Every PostgreSQL client must also be listed in lambda_security_groups."
   }
 }

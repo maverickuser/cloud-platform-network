@@ -13,7 +13,7 @@ The network is created in `ap-south-1`. Check the latest `Shared network` and `D
 | NAT gateway | One, in the first zone, used by every private subnet |
 | S3 gateway endpoint | On every private route table; allows only this account's buckets |
 | Interface endpoints | SQS and CloudWatch Logs, private DNS on, HTTPS from the VPC only |
-| Lambda security groups | One per consumer in `lambda_security_groups` (default `fetch`): HTTPS egress only, no ingress |
+| Lambda security groups | One per consumer in `lambda_security_groups` (default `fetch`, `processing`): HTTPS egress, no ingress; consumers in `postgres_clients` (default `processing`) may also reach PostgreSQL (5432) inside the VPC |
 
 A single NAT gateway means an outage of its zone stops outbound internet access for the whole VPC until it recovers. The NAT gateway and interface endpoints are billed hourly from creation.
 

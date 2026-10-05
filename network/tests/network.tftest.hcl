@@ -45,8 +45,12 @@ run "default_layout" {
     error_message = "Endpoints accept HTTPS from the VPC only; Lambda groups allow HTTPS egress only."
   }
   assert {
-    condition     = toset(keys(output.private_subnet_ids_by_az)) == toset(["ap-south-1a", "ap-south-1b"]) && toset(keys(output.private_route_table_ids_by_az)) == toset(["ap-south-1a", "ap-south-1b"]) && toset(keys(output.lambda_security_group_ids)) == toset(["fetch"])
+    condition     = toset(keys(output.private_subnet_ids_by_az)) == toset(["ap-south-1a", "ap-south-1b"]) && toset(keys(output.private_route_table_ids_by_az)) == toset(["ap-south-1a", "ap-south-1b"]) && toset(keys(output.lambda_security_group_ids)) == toset(["fetch", "processing"])
     error_message = "Outputs must be keyed by zone and by consumer name."
+  }
+  assert {
+    condition     = keys(aws_vpc_security_group_egress_rule.lambda_postgres) == ["processing"] && aws_vpc_security_group_egress_rule.lambda_postgres["processing"].cidr_ipv4 == "10.20.0.0/16" && aws_vpc_security_group_egress_rule.lambda_postgres["processing"].from_port == 5432 && aws_vpc_security_group_egress_rule.lambda_postgres["processing"].to_port == 5432
+    error_message = "Only the processing group may reach PostgreSQL, and only inside the VPC."
   }
 }
 
@@ -55,11 +59,11 @@ run "additional_consumers" {
 
   variables {
     interface_endpoint_services = ["sqs", "logs", "secretsmanager"]
-    lambda_security_groups      = ["fetch", "processing"]
+    lambda_security_groups      = ["fetch", "processing", "reporting"]
   }
 
   assert {
-    condition     = length(aws_vpc_endpoint.interface) == 3 && length(aws_security_group.lambda) == 2
+    condition     = length(aws_vpc_endpoint.interface) == 3 && length(aws_security_group.lambda) == 3 && length(aws_vpc_security_group_egress_rule.lambda_postgres) == 1
     error_message = "Extra endpoints and consumer security groups must be added by variables alone."
   }
 }
@@ -72,4 +76,14 @@ run "rejects_single_zone" {
   }
 
   expect_failures = [var.availability_zones]
+}
+
+run "rejects_postgres_client_without_group" {
+  command = plan
+
+  variables {
+    lambda_security_groups = ["fetch"]
+  }
+
+  expect_failures = [var.postgres_clients]
 }
