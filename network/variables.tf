@@ -37,7 +37,7 @@ variable "nat_gateway" {
 variable "interface_endpoint_services" {
   type        = set(string)
   default     = ["sqs"]
-  description = "AWS service short names that get an interface endpoint with private DNS."
+  description = "AWS service short names that get an interface endpoint with private DNS. Without NAT, every other AWS API a Lambda in the VPC calls (for example secretsmanager, sts, kms, logs) is unreachable until its name is added here."
 }
 
 variable "lambda_security_groups" {

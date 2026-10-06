@@ -87,8 +87,21 @@ run "nat_gateway_enabled" {
     error_message = "With NAT, every private route table defaults to it."
   }
   assert {
-    condition     = aws_vpc_security_group_egress_rule.lambda_https["processing"].cidr_ipv4 == "0.0.0.0/0"
-    error_message = "With NAT, Lambda groups may open HTTPS to the internet."
+    condition     = aws_vpc_security_group_egress_rule.lambda_https["processing"].cidr_ipv4 == "0.0.0.0/0" && aws_vpc_security_group_egress_rule.lambda_s3["processing"].prefix_list_id == "pl-s3"
+    error_message = "With NAT, Lambda groups may open HTTPS to the internet and keep the S3 prefix-list rule."
+  }
+}
+
+run "no_postgres_clients" {
+  command = plan
+
+  variables {
+    postgres_clients = []
+  }
+
+  assert {
+    condition     = length(aws_vpc_security_group_egress_rule.lambda_postgres) == 0 && aws_security_group.lambda["processing"].description == "Lambda functions of the processing service: HTTPS egress only"
+    error_message = "A consumer that is not a PostgreSQL client gets no 5432 egress."
   }
 }
 
