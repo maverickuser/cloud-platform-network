@@ -28,15 +28,21 @@ variable "availability_zones" {
   }
 }
 
+variable "nat_gateway" {
+  type        = bool
+  default     = false
+  description = "Create one NAT gateway so private subnets reach the internet. Off, private subnets reach only the VPC and its endpoints, and nothing here bills by the hour except the interface endpoints."
+}
+
 variable "interface_endpoint_services" {
   type        = set(string)
-  default     = ["sqs", "logs"]
+  default     = ["sqs"]
   description = "AWS service short names that get an interface endpoint with private DNS."
 }
 
 variable "lambda_security_groups" {
   type        = set(string)
-  default     = ["fetch", "processing"]
+  default     = ["processing"]
   description = "Consumer names; each gets a Lambda security group with HTTPS egress and no ingress."
   validation {
     condition     = alltrue([for name in var.lambda_security_groups : can(regex("^[a-z][a-z0-9-]{0,30}$", name))])

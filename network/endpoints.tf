@@ -53,11 +53,23 @@ resource "aws_security_group" "lambda" {
   tags        = { Name = "${var.name}-${each.key}-lambda" }
 }
 
+# Without NAT nothing outside the VPC is routable except S3 through its gateway endpoint,
+# so HTTPS egress is limited to the VPC (interface endpoints) and the S3 prefix list.
 resource "aws_vpc_security_group_egress_rule" "lambda_https" {
   for_each          = var.lambda_security_groups
   security_group_id = aws_security_group.lambda[each.key].id
-  description       = "HTTPS to VPC endpoints and, through NAT, the internet"
-  cidr_ipv4         = "0.0.0.0/0"
+  description       = var.nat_gateway ? "HTTPS to VPC endpoints and, through NAT, the internet" : "HTTPS to interface endpoints inside the VPC"
+  cidr_ipv4         = var.nat_gateway ? "0.0.0.0/0" : var.vpc_cidr
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "lambda_s3" {
+  for_each          = var.lambda_security_groups
+  security_group_id = aws_security_group.lambda[each.key].id
+  description       = "HTTPS to S3 through the gateway endpoint"
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443

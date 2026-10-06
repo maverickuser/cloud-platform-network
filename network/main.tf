@@ -2,8 +2,9 @@ data "aws_caller_identity" "current" {}
 
 locals {
   zones = { for index, zone in var.availability_zones : zone => index }
-  # One NAT gateway, in the first zone, serves every private subnet.
-  nat_zone = var.availability_zones[0]
+  # When enabled, one NAT gateway in the first zone serves every private subnet.
+  nat_zone  = var.availability_zones[0]
+  nat_zones = var.nat_gateway ? local.zones : {}
 }
 
 resource "aws_vpc" "this" {
@@ -54,12 +55,14 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
+  count  = var.nat_gateway ? 1 : 0
   domain = "vpc"
   tags   = { Name = "${var.name}-nat" }
 }
 
 resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
+  count         = var.nat_gateway ? 1 : 0
+  allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public[local.nat_zone].id
   tags          = { Name = var.name }
   depends_on    = [aws_internet_gateway.this]
@@ -72,10 +75,10 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route" "private_nat" {
-  for_each               = local.zones
+  for_each               = local.nat_zones
   route_table_id         = aws_route_table.private[each.key].id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.this.id
+  nat_gateway_id         = aws_nat_gateway.this[0].id
 }
 
 resource "aws_route_table_association" "private" {
