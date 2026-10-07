@@ -142,6 +142,16 @@ run "rejects_unknown_endpoint_zone" {
   expect_failures = [var.interface_endpoint_zones]
 }
 
+run "rejects_duplicate_endpoint_zones" {
+  command = plan
+
+  variables {
+    interface_endpoint_zones = ["ap-south-1a", "ap-south-1a"]
+  }
+
+  expect_failures = [var.interface_endpoint_zones]
+}
+
 run "rejects_empty_endpoint_zones" {
   command = plan
 
