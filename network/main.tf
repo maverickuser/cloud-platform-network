@@ -5,6 +5,8 @@ locals {
   # When enabled, one NAT gateway in the first zone serves every private subnet.
   nat_zone  = var.availability_zones[0]
   nat_zones = var.nat_gateway ? local.zones : {}
+  # Interface endpoints default to the first zone only, to halve their hourly cost.
+  endpoint_zones = coalesce(var.interface_endpoint_zones, [var.availability_zones[0]])
 }
 
 resource "aws_vpc" "this" {

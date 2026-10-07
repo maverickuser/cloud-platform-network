@@ -12,7 +12,7 @@ The network is created in `ap-south-1`. Check the latest `Shared network` and `D
 | Subnets | One public and one private `/20` in each of `ap-south-1a` and `ap-south-1b` |
 | NAT gateway | None by default (`nat_gateway = false`). When on, one in the first zone serves every private subnet |
 | S3 gateway endpoint | On every private route table; allows only this account's buckets |
-| Interface endpoints | SQS only by default (`interface_endpoint_services`), private DNS on, HTTPS from the VPC only |
+| Interface endpoints | SQS only by default (`interface_endpoint_services`), in the first zone only by default (`interface_endpoint_zones`; Lambdas in other zones reach it across zones), private DNS on, HTTPS from the VPC only |
 | Lambda security groups | One per consumer in `lambda_security_groups` (default `processing`), no ingress. HTTPS egress goes to the VPC (interface endpoints) and the S3 prefix list, or anywhere when NAT is on. Consumers in `postgres_clients` (default `processing`) may also reach PostgreSQL (5432) inside the VPC |
 
 Without NAT the private subnets have no internet route: a Lambda in them reaches only the VPC, S3, and the services that have an interface endpoint. A call to any other AWS API (Secrets Manager, STS, KMS, CloudWatch Logs) times out until its short name is added to `interface_endpoint_services`. Services that need the internet and no private resource, such as data-fetch-service, run their Lambdas outside the VPC instead. Interface endpoints are billed hourly per zone from creation. If `nat_gateway` is turned on, its gateway and Elastic IP are billed hourly too, and an outage of its zone stops outbound internet access for the whole VPC until it recovers.
@@ -47,7 +47,7 @@ data "terraform_remote_state" "network" {
 
 ## Outputs
 
-`vpc_id`, `vpc_cidr`, `public_subnet_ids_by_az`, `private_subnet_ids_by_az`, `private_route_table_ids_by_az`, `nat_gateway_ids_by_az` (every zone maps to the one gateway; empty without NAT), `s3_endpoint_id`, `interface_endpoint_ids`, `sqs_endpoint_id`, `lambda_security_group_ids`.
+`vpc_id`, `vpc_cidr`, `public_subnet_ids_by_az`, `private_subnet_ids_by_az`, `private_route_table_ids_by_az`, `nat_gateway_ids_by_az` (every zone maps to the one gateway; empty without NAT), `s3_endpoint_id`, `interface_endpoint_ids`, `interface_endpoint_zones`, `sqs_endpoint_id`, `lambda_security_group_ids`.
 
 ## State
 

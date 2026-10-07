@@ -40,6 +40,16 @@ variable "interface_endpoint_services" {
   description = "AWS service short names that get an interface endpoint with private DNS. Without NAT, every other AWS API a Lambda in the VPC calls (for example secretsmanager, sts, kms, logs) is unreachable until its name is added here."
 }
 
+variable "interface_endpoint_zones" {
+  type        = list(string)
+  default     = null
+  description = "Zones that get an interface endpoint network interface; null means the first availability zone only. Lambdas in other zones reach it across zones. Each zone bills hourly per endpoint."
+  validation {
+    condition     = var.interface_endpoint_zones == null || (try(length(var.interface_endpoint_zones), 0) >= 1 && length(setsubtract(toset(coalesce(var.interface_endpoint_zones, [])), toset(var.availability_zones))) == 0 && length(distinct(coalesce(var.interface_endpoint_zones, []))) == length(coalesce(var.interface_endpoint_zones, [])))
+    error_message = "interface_endpoint_zones must be null or a non-empty list of distinct zones from availability_zones."
+  }
+}
+
 variable "lambda_security_groups" {
   type        = set(string)
   default     = ["processing"]

@@ -31,6 +31,11 @@ output "interface_endpoint_ids" {
   value = { for service, endpoint in aws_vpc_endpoint.interface : service => endpoint.id }
 }
 
+output "interface_endpoint_zones" {
+  description = "Zones holding the interface endpoints' network interfaces."
+  value       = local.endpoint_zones
+}
+
 output "sqs_endpoint_id" {
   value = try(aws_vpc_endpoint.interface["sqs"].id, null)
 }
