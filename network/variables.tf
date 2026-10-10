@@ -36,8 +36,8 @@ variable "nat_gateway" {
 
 variable "interface_endpoint_services" {
   type        = set(string)
-  default     = ["sqs"]
-  description = "AWS service short names that get an interface endpoint with private DNS. Without NAT, every other AWS API a Lambda in the VPC calls (for example secretsmanager, sts, kms, logs) is unreachable until its name is added here."
+  default     = ["sqs", "secretsmanager"]
+  description = "AWS service short names that get an interface endpoint with private DNS. Processing uses SQS for dispatch and Secrets Manager for the migration function's RDS-managed master secret. Without NAT, other AWS APIs a Lambda in the VPC calls (for example sts, kms, logs) are unreachable until their names are added here."
 }
 
 variable "interface_endpoint_zones" {

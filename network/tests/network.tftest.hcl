@@ -42,8 +42,8 @@ run "default_layout" {
     error_message = "The S3 gateway endpoint must attach to every private route table and allow only this account's buckets."
   }
   assert {
-    condition     = keys(aws_vpc_endpoint.interface) == ["sqs"] && alltrue([for endpoint in aws_vpc_endpoint.interface : endpoint.private_dns_enabled && endpoint.vpc_endpoint_type == "Interface" && tolist(endpoint.subnet_ids) == tolist([aws_subnet.private["ap-south-1a"].id])]) && output.interface_endpoint_zones == tolist(["ap-south-1a"])
-    error_message = "Only SQS gets an interface endpoint by default, with private DNS, in the first zone only."
+    condition     = keys(aws_vpc_endpoint.interface) == ["secretsmanager", "sqs"] && alltrue([for endpoint in aws_vpc_endpoint.interface : endpoint.private_dns_enabled && endpoint.vpc_endpoint_type == "Interface" && tolist(endpoint.subnet_ids) == tolist([aws_subnet.private["ap-south-1a"].id])]) && output.interface_endpoint_zones == tolist(["ap-south-1a"])
+    error_message = "SQS and Secrets Manager must have private DNS interface endpoints in the first zone by default."
   }
   assert {
     condition     = keys(aws_security_group.lambda) == ["processing"]
@@ -109,12 +109,12 @@ run "additional_consumers" {
   command = plan
 
   variables {
-    interface_endpoint_services = ["sqs", "secretsmanager"]
+    interface_endpoint_services = ["sqs", "secretsmanager", "sts"]
     lambda_security_groups      = ["processing", "reporting"]
   }
 
   assert {
-    condition     = length(aws_vpc_endpoint.interface) == 2 && length(aws_security_group.lambda) == 2 && length(aws_vpc_security_group_egress_rule.lambda_postgres) == 1
+    condition     = length(aws_vpc_endpoint.interface) == 3 && length(aws_security_group.lambda) == 2 && length(aws_vpc_security_group_egress_rule.lambda_postgres) == 1
     error_message = "Extra endpoints and consumer security groups must be added by variables alone."
   }
 }
