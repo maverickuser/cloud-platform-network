@@ -19,8 +19,8 @@ output "private_route_table_ids_by_az" {
 }
 
 output "nat_gateway_ids_by_az" {
-  description = "Every zone maps to the single shared NAT gateway."
-  value       = { for zone in var.availability_zones : zone => aws_nat_gateway.this.id }
+  description = "Every zone maps to the single shared NAT gateway; empty when nat_gateway is off."
+  value       = { for zone in keys(local.nat_zones) : zone => aws_nat_gateway.this[0].id }
 }
 
 output "s3_endpoint_id" {
@@ -31,18 +31,15 @@ output "interface_endpoint_ids" {
   value = { for service, endpoint in aws_vpc_endpoint.interface : service => endpoint.id }
 }
 
+output "interface_endpoint_zones" {
+  description = "Zones holding the interface endpoints' network interfaces."
+  value       = local.endpoint_zones
+}
+
 output "sqs_endpoint_id" {
   value = try(aws_vpc_endpoint.interface["sqs"].id, null)
 }
 
-output "logs_endpoint_id" {
-  value = try(aws_vpc_endpoint.interface["logs"].id, null)
-}
-
 output "lambda_security_group_ids" {
   value = { for name, group in aws_security_group.lambda : name => group.id }
-}
-
-output "fetch_lambda_security_group_id" {
-  value = try(aws_security_group.lambda["fetch"].id, null)
 }
