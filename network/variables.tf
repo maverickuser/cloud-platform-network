@@ -14,7 +14,7 @@ variable "vpc_cidr" {
   default = "10.20.0.0/16"
   validation {
     condition     = can(cidrhost(var.vpc_cidr, 0)) && tonumber(split("/", var.vpc_cidr)[1]) <= 20
-    error_message = "vpc_cidr must be a valid CIDR of /20 or larger so four /4-bit subnets fit."
+    error_message = "vpc_cidr must be a valid CIDR of /20 or larger; subnets are 4 bits longer, so up to four zones fit."
   }
 }
 
@@ -28,18 +28,44 @@ variable "availability_zones" {
   }
 }
 
+variable "nat_gateway" {
+  type        = bool
+  default     = false
+  description = "Create one NAT gateway so private subnets reach the internet. Off, private subnets reach only the VPC and its endpoints, and nothing here bills by the hour except the interface endpoints."
+}
+
 variable "interface_endpoint_services" {
   type        = set(string)
-  default     = ["sqs", "logs"]
-  description = "AWS service short names that get an interface endpoint with private DNS."
+  default     = ["sqs", "secretsmanager"]
+  description = "AWS service short names that get an interface endpoint with private DNS. Processing uses SQS for dispatch and Secrets Manager for the migration function's RDS-managed master secret. Without NAT, other AWS APIs a Lambda in the VPC calls (for example sts, kms, logs) are unreachable until their names are added here."
+}
+
+variable "interface_endpoint_zones" {
+  type        = list(string)
+  default     = null
+  description = "Zones that get an interface endpoint network interface; null means the first availability zone only. Lambdas in other zones reach it across zones. Each zone bills hourly per endpoint."
+  validation {
+    condition     = var.interface_endpoint_zones == null || (try(length(var.interface_endpoint_zones), 0) >= 1 && length(setsubtract(toset(coalesce(var.interface_endpoint_zones, [])), toset(var.availability_zones))) == 0 && length(distinct(coalesce(var.interface_endpoint_zones, []))) == length(coalesce(var.interface_endpoint_zones, [])))
+    error_message = "interface_endpoint_zones must be null or a non-empty list of distinct zones from availability_zones."
+  }
 }
 
 variable "lambda_security_groups" {
   type        = set(string)
-  default     = ["fetch"]
-  description = "Consumer names; each gets a Lambda security group with HTTPS-only egress and no ingress."
+  default     = ["processing"]
+  description = "Consumer names; each gets a Lambda security group with HTTPS egress and no ingress."
   validation {
     condition     = alltrue([for name in var.lambda_security_groups : can(regex("^[a-z][a-z0-9-]{0,30}$", name))])
     error_message = "Security group consumer names must be short lowercase identifiers."
+  }
+}
+
+variable "postgres_clients" {
+  type        = set(string)
+  default     = ["processing"]
+  description = "Consumers whose Lambda security group may also open PostgreSQL (5432) connections inside the VPC."
+  validation {
+    condition     = length(setsubtract(var.postgres_clients, var.lambda_security_groups)) == 0
+    error_message = "Every PostgreSQL client must also be listed in lambda_security_groups."
   }
 }
