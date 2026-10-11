@@ -1,7 +1,11 @@
 name: Network
-# Reusable: any repository's deployment calls this first. Terraform apply is
-# idempotent, so the first call creates the network and later calls change nothing.
+# A merge to main plans; pushing a v* tag applies that tagged commit.
+# Also reusable: a service's deployment may call it at a tag. Terraform apply is
+# idempotent, so a call at an already applied tag changes nothing.
 on:
+  push:
+    branches: [main]
+    tags: ['v*']
   workflow_call:
     inputs:
       network_ref:
@@ -55,7 +59,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: maverickuser/cloud-platform-network
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'maverickuser/cloud-platform-network' && github.sha || inputs.network_ref || 'v1' }}
+          # Run in this repository (push or manual): the triggering commit. Called by a service: its tag.
+          ref: ${{ github.repository == 'maverickuser/cloud-platform-network' && github.sha || inputs.network_ref || 'v1' }}
       - name: Install pinned Terraform
         run: |
           curl -fsSLo terraform.zip https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip
@@ -89,5 +94,6 @@ jobs:
       - name: Terraform plan
         run: terraform -chdir=network plan -input=false -lock-timeout=10m -var "aws_region=$AWS_REGION" -out=network.tfplan
       - name: Terraform apply
-        if: ${{ inputs.apply }}
+        # A tag push applies; a push to main only plans; a call or manual run follows its input.
+        if: ${{ inputs.apply || (github.repository == 'maverickuser/cloud-platform-network' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) }}
         run: terraform -chdir=network apply -input=false -lock-timeout=10m network.tfplan

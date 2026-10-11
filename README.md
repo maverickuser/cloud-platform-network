@@ -17,6 +17,14 @@ The network is created in `ap-south-1`. Check the latest `Shared network` and `D
 
 Without NAT the private subnets have no internet route: a Lambda in them reaches only the VPC, S3, and the services that have an interface endpoint. The processing migration Lambda reads the RDS-managed master secret through the Secrets Manager endpoint; the other functions sign their database IAM tokens locally. A call to another AWS API (STS, KMS, CloudWatch Logs) times out until its short name is added to `interface_endpoint_services`. Services that need the internet and no private resource, such as data-fetch-service, run their Lambdas outside the VPC instead. Interface endpoints are billed hourly per zone from creation. With the default single endpoint zone, an outage of that zone cuts every Lambda in the VPC off from those services; list both zones in `interface_endpoint_zones` when a consumer must survive it. If `nat_gateway` is turned on, its gateway and Elastic IP are billed hourly too, and an outage of its zone stops outbound internet access for the whole VPC until it recovers.
 
+## Releasing a change
+
+1. Merge the pull request. CI runs the local checks, and the `Network` workflow plans against the live network without changing it; read the plan in its log.
+2. Push a tag for the merged commit: `git tag v2 <commit> && git push origin v2`. The `Network` workflow plans and applies that commit.
+3. Move every service's `uses: ...apply.yml@vN` to the new tag. All services share one network state, so keep them on the same tag: a service still on an older tag would undo the change when it deploys.
+
+The `Network` workflow needs this repository's `AWS_ROLE_TO_ASSUME` secret, and the role's OIDC trust must allow this repository's `main` branch and `v*` tags as well as the calling services.
+
 ## Using it from a service repository
 
 ```yaml
